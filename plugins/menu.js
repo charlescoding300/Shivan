@@ -2,63 +2,49 @@ import fs from "fs"
 
 export const name = "menu"
 
-// 1 second delay helper
-const sleep = (ms) => new Promise(res => setTimeout(res, ms))
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 export async function run(sock, msg) {
   const jid = msg.key.remoteJid
 
-  // get available commands dynamically
   const files = fs.readdirSync("./plugins")
     .filter(f => f.endsWith(".js") && f !== "menu.js")
-    .map(f => f.replace(".js", ""))
+    .map(f => "• ." + f.replace(".js", ""))
 
-  // ⚔️ STEP 1 - INITIALIZE
   const sent = await sock.sendMessage(jid, {
-    text: "```Initializing Menu....```"
+    text: "SYSTEM BOOTING..."
   })
 
-  await sleep(1000)
+  await sleep(600)
 
-  // ⚔️ STEP 2 - CONNECTING
   await sock.sendMessage(jid, {
-    text: "```Connecting to DARK WEB SERVER...```",
+    text: "LOADING CORE MODULES...",
     edit: sent.key
   })
 
-  await sleep(1000)
+  await sleep(600)
 
-  // ⚔️ STEP 3 - DECRYPT CORE (YOUR CUSTOM LINE)
   await sock.sendMessage(jid, {
-    text: "```Decrypting ▒▒▒ˡᵉˣʸ⃝⃝༒💘 CORE...```",
+    text: "SCANNING PLUGINS...",
     edit: sent.key
   })
 
-  await sleep(1000)
+  await sleep(600)
 
-  // ⚔️ FINAL MENU BUILD
-  let menuText = `
-▒▒▒ˡᵉˣʸ⃝⃝༒💘 SYSTEM ONLINE ⚡
-
-🌐 DARK WEB SERVER CONNECTED
+  const menu = `
+▒▒▒ SYSTEM ONLINE ⚡
 ━━━━━━━━━━━━━━━━━━
 
-📜 AVAILABLE COMMANDS:
-`
+📜 COMMANDS:
+${files.join("\n")}
 
-  for (const cmd of files) {
-    menuText += `\n• .${cmd}`
-  }
-
-  menuText += `
 ━━━━━━━━━━━━━━━━━━
-STATUS: ONLINE 🟢
-MODE: HACKER CORE ACTIVE ⚡
+
+*Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*
 `
 
-  // ⚔️ FINAL EDIT → MENU
   await sock.sendMessage(jid, {
-    text: menuText,
+    text: menu,
     edit: sent.key
   })
 }
