@@ -1,22 +1,19 @@
 {
   "name": "wabbot",
   "version": "1.0.0",
-  "description": "",
+  "description": "WhatsApp bot",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/text-to-speech": "^6.4.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "axios": "^1.15.0",
     "edge-tts": "^1.0.1",
-    "fs": "^0.0.1-security",
-    "google-tts-api": "^2.0.2",
     "pino": "^10.3.1"
   }
 }
