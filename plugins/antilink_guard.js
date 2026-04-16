@@ -7,12 +7,10 @@ export default {
       if (!chat || !chat.endsWith("@g.us")) return
       if (!msg.message) return
 
-      // Ensure DB exists
       global.antilinkDB = global.antilinkDB || {}
       const group = global.antilinkDB[chat]
       if (!group || group.mode === "off") return
 
-      // Extract message text safely
       const text =
         msg.message.conversation ||
         msg.message.extendedTextMessage?.text ||
@@ -22,28 +20,43 @@ export default {
 
       if (!text) return
 
-      // 🔗 Improved link detection
+      // 🔗 Strong KnightBotMD-style detection
       const linkRegex =
-        /(https?:\/\/|www\.|wa\.me|chat\.whatsapp\.com|t\.me|discord\.gg|bit\.ly|\.com|\.net|\.org)/i
+        /(https?:\/\/|www\.|wa\.me|chat\.whatsapp\.com|t\.me|discord\.gg|bit\.ly|\.com|\.net|\.org|\.io|\.xyz)/i
 
       if (!linkRegex.test(text)) return
 
       const sender = msg.key.participant || msg.key.remoteJid
 
-      // Get group metadata
       const metadata = await sock.groupMetadata(chat)
       const groupName = metadata.subject || "this group"
 
-      // Check if sender is admin
+      // =========================
+      // 🔥 BOT ADMIN CHECK (IMPORTANT)
+      // =========================
+      const botId = sock.user.id.split(":")[0] + "@s.whatsapp.net"
+
+      const botAdmin = metadata.participants.find(
+        p => p.id === botId && (p.admin === "admin" || p.admin === "superadmin")
+      )
+
+      if (!botAdmin) {
+        console.log("❌ Bot is not admin - cannot delete messages")
+        return
+      }
+
+      // =========================
+      // 🔥 USER ADMIN CHECK
+      // =========================
       const isAdmin = metadata.participants.find(
-        p =>
-          p.id === sender &&
-          (p.admin === "admin" || p.admin === "superadmin")
+        p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
       )
 
       if (isAdmin) return
 
-      // 🔗 Auto React
+      // =========================
+      // 🔗 AUTO REACT
+      // =========================
       try {
         await sock.sendMessage(chat, {
           react: {
@@ -53,27 +66,33 @@ export default {
         })
       } catch {}
 
-      // 🗑 Delete message
+      // =========================
+      // 🗑 KNIGHTBOTMD DELETE STYLE
+      // =========================
       try {
         await sock.sendMessage(chat, {
           delete: {
             remoteJid: chat,
             fromMe: false,
             id: msg.key.id,
-            participant: msg.key.participant
+            participant: sender
           }
         })
       } catch (err) {
         console.log("Delete failed:", err.message)
       }
 
-      // Initialize warnings
+      // =========================
+      // ⚠️ WARN SYSTEM
+      // =========================
       if (!group.warnings) group.warnings = {}
       if (!group.warnings[sender]) group.warnings[sender] = 0
 
       group.warnings[sender]++
 
+      // =========================
       // 🟡 DELETE + WARN MODE
+      // =========================
       if (group.mode === "delete_warn") {
         await sock.sendMessage(chat, {
           text: `🚫 _Link detected!_
@@ -89,7 +108,9 @@ export default {
         }
       }
 
+      // =========================
       // 🟢 WARN MODE
+      // =========================
       else if (group.mode === "warn") {
         await sock.sendMessage(chat, {
           text: `🚫 _Link removed!_
@@ -105,7 +126,9 @@ export default {
         }
       }
 
+      // =========================
       // 🔴 KICK MODE
+      // =========================
       else if (group.mode === "kick") {
         await sock.groupParticipantsUpdate(chat, [sender], "remove")
 
