@@ -6,8 +6,16 @@ export default {
   run: async (sock, msg) => {
     const chat = msg.key.remoteJid
 
+    // 🤖 react instantly
+    await sock.sendMessage(chat, {
+      react: {
+        text: "🤖",
+        key: msg.key
+      }
+    })
+
     const sent = await sock.sendMessage(chat, {
-      text: "```⧉ INITIALIZING COMMAND MATRIX...```"
+      text: "```⧉ SCANNING SYSTEM...```"
     })
 
     await new Promise(r => setTimeout(r, 800))
@@ -23,19 +31,12 @@ export default {
 ║     ⚡ WABBOT SYSTEM ⚡     ║
 ╚════════════════════════════╝
 
-┌── ⌬ AVAILABLE COMMANDS ──┐
-${commands.length
-  ? commands.map(c => `│ .${c}`).join("\n")
-  : "│ (no commands loaded)"}
-└──────────────────────────┘
+┌── ⌬ COMMANDS ──┐
+${commands.map(c => `│ .${c}`).join("\n")}
+└────────────────┘
 
-┌── ⌬ SYSTEM STATUS ──┐
-│ STATUS   → ONLINE
-│ ENGINE   → BAILEYS MD
-│ MODULES  → ${commands.length}
-└─────────────────────┘
-
-> TYPE .menu TO REFRESH SYSTEM
+> SYSTEM ONLINE
+> MODULES: ${commands.length}
 
 > *CREATED BY ▒▒▒ˡᵉˣʸ⃝⃝༒💘*
 `
