@@ -52,7 +52,7 @@ Engine: Google TTS (CharlesTech)`
         text: `✔ Voice Generated Successfully
 Emotion: ${emotion}
 
-> Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
+> *Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
         edit: sent.key
       })
 
