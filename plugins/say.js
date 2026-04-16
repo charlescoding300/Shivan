@@ -26,6 +26,7 @@ export default {
       })
     }
 
+    // 🧠 detect emotion
     const emotion = detectEmotion(text)
 
     const sent = await sock.sendMessage(chat, {
@@ -35,27 +36,37 @@ Engine: Google TTS`
     })
 
     try {
+      // 🔊 generate audio
       const file = await tts(text)
 
+      // 🚨 safety check
+      if (!fs.existsSync(file)) {
+        throw new Error("Audio file not found")
+      }
+
+      const audio = fs.readFileSync(file)
+
+      // 🎧 send voice note
       await sock.sendMessage(chat, {
-        audio: fs.readFileSync(file),
+        audio,
         mimetype: "audio/mpeg",
         ptt: true
       })
 
+      // ✨ update same message
       await sock.sendMessage(chat, {
-        text: `✔ Voice sent successfully
+        text: `✔ Voice Generated Successfully
 Emotion: ${emotion}
 
-> Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
+> *Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
         edit: sent.key
       })
 
     } catch (err) {
-      console.log("TTS ERROR:", err)
+      console.log("SAY ERROR:", err)
 
       await sock.sendMessage(chat, {
-        text: "❌ Failed to generate voice (blocked or invalid audio)"
+        text: "❌ Failed to generate voice (audio error)"
       })
     }
   }
