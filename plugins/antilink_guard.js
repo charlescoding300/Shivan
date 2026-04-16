@@ -9,6 +9,8 @@ export default {
 
       global.antilinkDB = global.antilinkDB || {}
       const group = global.antilinkDB[chat]
+
+      // ❌ STOP if OFF
       if (!group || group.mode === "off") return
 
       const text =
@@ -20,43 +22,27 @@ export default {
 
       if (!text) return
 
-      // 🔗 Strong KnightBotMD-style detection
+      // 🔗 LINK CHECK (always active when mode ON)
       const linkRegex =
-        /(https?:\/\/|www\.|wa\.me|chat\.whatsapp\.com|t\.me|discord\.gg|bit\.ly|\.com|\.net|\.org|\.io|\.xyz)/i
+        /(https?:\/\/|www\.|wa\.me|chat\.whatsapp\.com|t\.me|discord\.gg|bit\.ly|\.com|\.net|\.org|\.xyz)/i
 
-      if (!linkRegex.test(text)) return
+      const hasLink = linkRegex.test(text)
+      if (!hasLink) return
 
       const sender = msg.key.participant || msg.key.remoteJid
 
       const metadata = await sock.groupMetadata(chat)
       const groupName = metadata.subject || "this group"
 
-      // =========================
-      // 🔥 BOT ADMIN CHECK (IMPORTANT)
-      // =========================
-      const botId = sock.user.id.split(":")[0] + "@s.whatsapp.net"
-
-      const botAdmin = metadata.participants.find(
-        p => p.id === botId && (p.admin === "admin" || p.admin === "superadmin")
-      )
-
-      if (!botAdmin) {
-        console.log("❌ Bot is not admin - cannot delete messages")
-        return
-      }
-
-      // =========================
-      // 🔥 USER ADMIN CHECK
-      // =========================
+      // 🚫 ignore admins
       const isAdmin = metadata.participants.find(
-        p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
+        p =>
+          p.id === sender &&
+          (p.admin === "admin" || p.admin === "superadmin")
       )
-
       if (isAdmin) return
 
-      // =========================
-      // 🔗 AUTO REACT
-      // =========================
+      // 🔗 AUTO REACT (always)
       try {
         await sock.sendMessage(chat, {
           react: {
@@ -66,17 +52,10 @@ export default {
         })
       } catch {}
 
-      // =========================
-      // 🗑 KNIGHTBOTMD DELETE STYLE
-      // =========================
+      // 🗑 ALWAYS DELETE (no matter mode)
       try {
         await sock.sendMessage(chat, {
-          delete: {
-            remoteJid: chat,
-            fromMe: false,
-            id: msg.key.id,
-            participant: sender
-          }
+          delete: msg.key
         })
       } catch (err) {
         console.log("Delete failed:", err.message)
@@ -138,7 +117,7 @@ export default {
       }
 
     } catch (err) {
-      console.log("ANTILINK GUARD ERROR:", err)
+      console.log("ANTILINK ERROR:", err)
     }
   }
 }
