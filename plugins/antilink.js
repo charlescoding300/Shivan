@@ -4,15 +4,25 @@ export default {
   run: async (sock, msg, args) => {
     try {
       const chat = msg.key.remoteJid
+      if (!chat.endsWith("@g.us")) return
 
-      if (!chat.endsWith("@g.us")) {
+      const metadata = await sock.groupMetadata(chat)
+      const sender = msg.key.participant || msg.key.remoteJid
+
+      // check admin
+      const isAdmin = metadata.participants.find(
+        p =>
+          p.id === sender &&
+          (p.admin === "admin" || p.admin === "superadmin")
+      )
+
+      if (!isAdmin) {
         return sock.sendMessage(chat, {
-          text: "❌ Group only command"
+          text: "❌ Only group admins can use this command."
         })
       }
 
       global.antilinkDB = global.antilinkDB || {}
-
       if (!global.antilinkDB[chat]) {
         global.antilinkDB[chat] = {
           mode: "off",
@@ -20,67 +30,62 @@ export default {
         }
       }
 
-      const db = global.antilinkDB[chat]
-      const input = args.join(" ").toLowerCase()
+      const group = global.antilinkDB[chat]
 
-      const react = async () => {
-        await sock.sendMessage(chat, {
-          react: { text: "🔗", key: msg.key }
-        })
-      }
+      const mode = args[0]?.toLowerCase()
 
-      if (!input) {
-        return sock.sendMessage(chat, {
-          text: `
-Usage:
-.antilink on
-.antilink/warn on
-.antilink/kick on
-.antilink off
-`
-        })
-      }
+      // =========================
+      // 🔥 SET MODES
+      // =========================
 
-      if (input === "on") {
-        db.mode = "delete_warn"
-        db.warnings = {}
-        await react()
+      if (mode === "on") {
+        group.mode = "delete_warn"
 
         return sock.sendMessage(chat, {
-          text: "🛡️ Antilink DELETE + WARN MODE ENABLED"
+          text: "🟢 Anti-Link ENABLED (Delete + Warn mode)"
         })
       }
 
-      if (input === "warn on") {
-        db.mode = "warn"
-        db.warnings = {}
-        await react()
+      if (mode === "warn") {
+        group.mode = "warn"
 
         return sock.sendMessage(chat, {
-          text: "🛡️ Antilink WARN MODE ENABLED"
+          text: "🟡 Anti-Link set to WARN mode"
         })
       }
 
-      if (input === "kick on") {
-        db.mode = "kick"
-        db.warnings = {}
-        await react()
+      if (mode === "kick") {
+        group.mode = "kick"
 
         return sock.sendMessage(chat, {
-          text: "🚨 Antilink KICK MODE ENABLED"
+          text: "🔴 Anti-Link set to KICK mode"
         })
       }
 
-      if (input === "off") {
-        db.mode = "off"
-        db.warnings = {}
+      if (mode === "off") {
+        group.mode = "off"
+
         return sock.sendMessage(chat, {
-          text: "⚠️ Antilink DISABLED"
+          text: "⚫ Anti-Link DISABLED"
         })
       }
 
-    } catch (e) {
-      console.log("ANTILINK ERROR:", e.message)
+      // =========================
+      // HELP MENU
+      // =========================
+      return sock.sendMessage(chat, {
+        text: `
+📛 ANTI-LINK COMMANDS
+
+.antilink on    → delete + warn
+.antilink warn  → warn only
+.antilink kick  → instant kick
+.antilink off   → disable system
+        `
+      })
+
+    } catch (err) {
+      console.log("ANTILINK CMD ERROR:", err)
     }
   }
 }
