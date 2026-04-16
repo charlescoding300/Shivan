@@ -16,43 +16,54 @@ export default {
         msg.message?.extendedTextMessage?.text ||
         ""
 
+      if (!text) return
+
       const sender = msg.key.participant || msg.key.remoteJid
 
       const linkRegex = /(https?:\/\/|www\.|wa\.me|t\.me)/i
 
       if (!linkRegex.test(text)) return
 
-      // ALWAYS DELETE FIRST
+      const metadata = await sock.groupMetadata(chat)
+      const groupName = metadata.subject || "this group"
+
+      // ⚡ ALWAYS DELETE FIRST
       try {
         await sock.sendMessage(chat, {
           delete: msg.key
         })
       } catch {}
 
-      // ignore admins safely
-      let metadata
-      try {
-        metadata = await sock.groupMetadata(chat)
-      } catch {
-        return
-      }
-
-      const isAdmin = metadata.participants?.find(
+      // ignore admins
+      const isAdmin = metadata.participants.find(
         p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
       )
-
       if (isAdmin) return
-
-      const groupName = metadata.subject || "this group"
 
       if (!group.warnings[sender]) group.warnings[sender] = 0
 
       group.warnings[sender]++
 
-      // 🟡 WARN MODE
-      if (group.mode === "warn" || group.mode === "delete_warn") {
+      // 🟡 DELETE + WARN MODE
+      if (group.mode === "delete_warn") {
         await sock.sendMessage(chat, {
           text: `🚫 Link detected!
+
+▒▒▒ˡᵉˣʸ⃝⃝༒🌹 doesn't want any link in ${groupName}
+
+⚠️ Warning ${group.warnings[sender]}/3`
+        })
+
+        if (group.warnings[sender] >= 3) {
+          await sock.groupParticipantsUpdate(chat, [sender], "remove")
+          group.warnings[sender] = 0
+        }
+      }
+
+      // 🟢 WARN MODE
+      if (group.mode === "warn") {
+        await sock.sendMessage(chat, {
+          text: `🚫 Link removed!
 
 *▒▒▒ˡᵉˣʸ⃝⃝༒🌹 doesn't want any link in ${groupName}*
 
@@ -60,19 +71,14 @@ export default {
         })
 
         if (group.warnings[sender] >= 3) {
-          try {
-            await sock.groupParticipantsUpdate(chat, [sender], "remove")
-          } catch {}
-
+          await sock.groupParticipantsUpdate(chat, [sender], "remove")
           group.warnings[sender] = 0
         }
       }
 
       // 🔴 KICK MODE
       if (group.mode === "kick") {
-        try {
-          await sock.groupParticipantsUpdate(chat, [sender], "remove")
-        } catch {}
+        await sock.groupParticipantsUpdate(chat, [sender], "remove")
 
         await sock.sendMessage(chat, {
           text: `🚨 User removed for sending link in ${groupName}`
@@ -80,7 +86,7 @@ export default {
       }
 
     } catch (e) {
-      console.log("ANTILINK GUARD ERROR:", e)
+      console.log("ANTILINK GUARD ERROR:", e.message)
     }
   }
 }

@@ -4,13 +4,14 @@ export default {
   run: async (sock, msg, args) => {
     try {
       const chat = msg.key.remoteJid
+
       if (!chat.endsWith("@g.us")) {
-        return sock.sendMessage(chat, { text: "❌ Group only command" })
+        return sock.sendMessage(chat, {
+          text: "❌ Group only command"
+        })
       }
 
       global.antilinkDB = global.antilinkDB || {}
-
-      const input = args.join(" ").toLowerCase()
 
       if (!global.antilinkDB[chat]) {
         global.antilinkDB[chat] = {
@@ -20,6 +21,7 @@ export default {
       }
 
       const db = global.antilinkDB[chat]
+      const input = args.join(" ").toLowerCase()
 
       const react = async () => {
         await sock.sendMessage(chat, {
@@ -78,7 +80,7 @@ Usage:
       }
 
     } catch (e) {
-      console.log("ANTILINK CMD ERROR:", e)
+      console.log("ANTILINK ERROR:", e.message)
     }
   }
 }
