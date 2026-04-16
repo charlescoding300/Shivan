@@ -1,50 +1,17 @@
 import fs from "fs"
-import { exec } from "child_process"
+import { tts } from "../lib/tts.js"
 import { loveWords, sadWords, angryWords } from "../lib/emotions.js"
 
-// 🧠 ADVANCED EMOTION DETECTION
+// 🧠 emotion detection (word-based system)
 function detectEmotion(text) {
   const t = text.toLowerCase()
+  const is = (arr) => arr.some(w => t.includes(w))
 
-  const matchCount = (arr) => {
-    let count = 0
-    for (const w of arr) {
-      if (t.includes(w)) count++
-    }
-    return count
-  }
-
-  const loveScore = matchCount(loveWords)
-  const sadScore = matchCount(sadWords)
-  const angryScore = matchCount(angryWords)
-
-  // decide strongest emotion
-  if (angryScore > loveScore && angryScore > sadScore) return "angry"
-  if (sadScore > loveScore && sadScore > angryScore) return "sad"
-  if (loveScore > angryScore && loveScore > sadScore) return "love"
+  if (is(angryWords)) return "angry"
+  if (is(sadWords)) return "sad"
+  if (is(loveWords)) return "love"
 
   return "normal"
-}
-
-// 🎙 UK FEMALE VOICES
-function getVoice(emotion) {
-  if (emotion === "angry") return "en-GB-SoniaNeural"
-  if (emotion === "sad") return "en-GB-LibbyNeural"
-  if (emotion === "love") return "en-GB-SoniaNeural"
-  return "en-GB-SoniaNeural"
-}
-
-// 🔊 TTS ENGINE
-function tts(text, voice, file = "voice.mp3") {
-  return new Promise((resolve, reject) => {
-    const safe = text.replace(/"/g, "'")
-    const cmd = `edge-tts --text "${safe}" --voice ${voice} --write-media ${file}`
-
-    exec(cmd, (err) => {
-      if (err) return reject(err)
-      resolve(file)
-    })
-  })
 }
 
 export default {
@@ -60,39 +27,37 @@ export default {
       })
     }
 
-    // 🧠 detect emotion
+    // 🧠 detect emotion (still used for label only)
     const emotion = detectEmotion(text)
-    const voice = getVoice(emotion)
 
-    // ⚡ status message
     const sent = await sock.sendMessage(chat, {
-      text: `🎙 Processing voice...
+      text: `🎙 Generating voice...
 Emotion: ${emotion}
-Voice:Female (Neural)`
+Engine: Google TTS (CharlesTech)`
     })
 
     try {
-      const file = await tts(text, voice)
+      // 🔊 generate audio
+      const file = await tts(text)
 
-      // 🎧 send audio
+      // 🎧 send voice note
       await sock.sendMessage(chat, {
         audio: fs.readFileSync(file),
         mimetype: "audio/mpeg",
         ptt: true
       })
 
-      // ✨ final edit message
+      // ✨ final update (edit same message)
       await sock.sendMessage(chat, {
-        text: `✔ Voice generated successfully
+        text: `✔ Voice Generated Successfully
 Emotion: ${emotion}
-Voice: ${voice}
 
-> *Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
+> Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`,
         edit: sent.key
       })
 
-    } catch (e) {
-      console.log(e)
+    } catch (err) {
+      console.log(err)
 
       await sock.sendMessage(chat, {
         text: "❌ Voice generation failed"

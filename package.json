@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "axios": "^1.15.0",
     "pino": "^10.3.1"
   }
 }
