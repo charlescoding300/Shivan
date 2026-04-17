@@ -21,7 +21,7 @@ export default {
       })
     }
 
-    // 🗣️ AUTO REACT
+    // 🗣️ SINGLE AUTO REACT ONLY
     await sock.sendMessage(chat, {
       react: { text: "🗣️", key: m.key }
     })
@@ -29,38 +29,32 @@ export default {
     const file = "say.mp3"
     const voice = "en-GB-SoniaNeural"
 
-    await sock.sendMessage(chat, {
-      text: "🗣️ ```Connecting voice engine...```"
+    // ⚡ SINGLE STATUS MESSAGE (NO SPAM)
+    const status = await sock.sendMessage(chat, {
+      text: "🗣️ Generating voice..."
     })
 
-    await new Promise(r => setTimeout(r, 600))
+    // =========================
+    // 🔊 SAFE EDGE-TTS COMMAND
+    // =========================
 
-    await sock.sendMessage(chat, {
-      text: "🎧 ```Applying UK voice smoothing...```"
-    })
-
-    await new Promise(r => setTimeout(r, 600))
-
-    await sock.sendMessage(chat, {
-      text: "⚡ ```Generating speech...```"
-    })
-
-    // 🔊 GENERATE VOICE
     exec(
-      `npx edge-tts -t "${msg}" -v ${voice} --rate +5% --pitch +10Hz --write-media ${file}`,
+      `npx edge-tts -t "${msg.replace(/"/g, "'")}" -v ${voice} --write-media ${file}`,
       async (err) => {
         if (err) {
+          console.log("TTS ERROR:", err)
+
           return sock.sendMessage(chat, {
-            text: "❌ Voice generation failed"
+            text: "❌ Audio generation failed (check voice engine)"
           })
         }
 
         try {
           await new Promise(r => setTimeout(r, 1200))
 
-          if (!fs.existsSync(file)) {
+          if (!fs.existsSync(file) || fs.statSync(file).size < 1000) {
             return sock.sendMessage(chat, {
-              text: "❌ Audio file missing"
+              text: "❌ Audio file missing or corrupted"
             })
           }
 
@@ -72,30 +66,28 @@ export default {
             ptt: true
           })
 
-          // ✔ FINAL MESSAGE WITH YOUR TAG
           await sock.sendMessage(chat, {
             text: `
-✔ VOICE ENGINE COMPLETE
-VOICE: UK FEMALE (SONIA NEURAL)
-RATE: +5%
-PITCH: +10Hz
-STATUS: STABLE
+✔ VOICE READY
+VOICE: UK FEMALE (SONIA)
+STATUS: SUCCESS
 
 > *Created by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*
-`
+            `,
+            edit: status.key
           })
 
-          // 🧹 CLEANUP
           setTimeout(() => {
             try {
               fs.unlinkSync(file)
             } catch {}
-          }, 6000)
+          }, 5000)
 
         } catch (e) {
           console.log(e)
+
           sock.sendMessage(chat, {
-            text: "❌ Audio send error"
+            text: "❌ Failed to send audio"
           })
         }
       }
