@@ -1,91 +1,100 @@
-export default {
+const URL_REGEX =
+  /(https?:\/\/|www\.|wa\.me|chat\.whatsapp\.com|t\.me|discord\.gg|bit\.ly|\.com|\.net|\.org|\.xyz)/i
+
+global.antilinkDB = global.antilinkDB || {}
+
+module.exports = {
   name: "antilink",
 
-  run: async (sock, msg, args) => {
+  run: async (sock, msg) => {
     try {
-      const chat = msg.key.remoteJid
-      if (!chat.endsWith("@g.us")) return
+      const chat = msg.key?.remoteJid
+      if (!chat || !chat.endsWith("@g.us")) return
+      if (!msg.message) return
 
-      const metadata = await sock.groupMetadata(chat)
+      const group = global.antilinkDB[chat]
+      if (!group || group.mode === "off") return
+
+      const text =
+        msg.message.conversation ||
+        msg.message.extendedTextMessage?.text ||
+        msg.message.imageMessage?.caption ||
+        msg.message.videoMessage?.caption ||
+        ""
+
+      if (!text) return
+      if (!URL_REGEX.test(text)) return
+
       const sender = msg.key.participant || msg.key.remoteJid
 
-      // check admin
-      const isAdmin = metadata.participants.find(
-        p =>
-          p.id === sender &&
-          (p.admin === "admin" || p.admin === "superadmin")
-      )
+      const metadata = await sock.groupMetadata(chat)
+      const groupName = metadata.subject || "this group"
 
-      if (!isAdmin) {
-        return sock.sendMessage(chat, {
-          text: "❌ Only group admins can use this command."
+      // 🚫 ignore admins
+      const isAdmin = metadata.participants.find(
+        p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
+      )
+      if (isAdmin) return
+
+      // 🔗 AUTO REACT
+      try {
+        await sock.sendMessage(chat, {
+          react: {
+            text: "🔗",
+            key: msg.key
+          }
         })
+      } catch {}
+
+      // 🗑 DELETE MESSAGE (WORKING FORMAT)
+      try {
+        await sock.sendMessage(chat, {
+          delete: {
+            remoteJid: chat,
+            id: msg.key.id,
+            participant: sender
+          }
+        })
+      } catch (e) {
+        console.log("Delete failed:", e.message)
       }
 
-      global.antilinkDB = global.antilinkDB || {}
-      if (!global.antilinkDB[chat]) {
-        global.antilinkDB[chat] = {
-          mode: "off",
-          warnings: {}
+      // warning system
+      if (!group.warnings) group.warnings = {}
+      if (!group.warnings[sender]) group.warnings[sender] = 0
+
+      group.warnings[sender]++
+
+      const warningMsg = `🚫 _Link detected!_
+
+▒▒▒ˡᵉˣʸ⃝⃝༒🌹 doesn't want any link in _${groupName}_
+
+⚠️ Warning ${group.warnings[sender]}/3`
+
+      // MODE SYSTEM
+      if (group.mode === "delete") {
+        await sock.sendMessage(chat, { text: warningMsg })
+      }
+
+      else if (group.mode === "warn") {
+        await sock.sendMessage(chat, { text: warningMsg })
+
+        if (group.warnings[sender] >= 3) {
+          await sock.groupParticipantsUpdate(chat, [sender], "remove")
+          group.warnings[sender] = 0
         }
       }
 
-      const group = global.antilinkDB[chat]
+      else if (group.mode === "kick") {
+        await sock.groupParticipantsUpdate(chat, [sender], "remove")
 
-      const mode = args[0]?.toLowerCase()
-
-      // =========================
-      // 🔥 SET MODES
-      // =========================
-
-      if (mode === "on") {
-        group.mode = "delete_warn"
-
-        return sock.sendMessage(chat, {
-          text: "🟢 Anti-Link ENABLED (Delete + Warn mode)"
+        await sock.sendMessage(chat, {
+          text: `🚨 _User removed for sending link in ${groupName}_`
         })
       }
-
-      if (mode === "warn") {
-        group.mode = "warn"
-
-        return sock.sendMessage(chat, {
-          text: "🟡 Anti-Link set to WARN mode"
-        })
-      }
-
-      if (mode === "kick") {
-        group.mode = "kick"
-
-        return sock.sendMessage(chat, {
-          text: "🔴 Anti-Link set to KICK mode"
-        })
-      }
-
-      if (mode === "off") {
-        group.mode = "off"
-
-        return sock.sendMessage(chat, {
-          text: "⚫ Anti-Link DISABLED"
-        })
-      }
-
-      // =========================
-      // HELP MENU
-      // =========================
-      return sock.sendMessage(chat, {
-        text: `
-📛 ANTI-LINK COMMANDS
-
-.antilink on    → delete + warn
-.antilink warn  → warn only
-.antilink kick  → instant kick
-.antilink off   → disable system
-        `
-      })
 
     } catch (err) {
-      console.log("ANTILINK CMD ERROR:", err)
+      console.log("ANTILINK ERROR:", err)
     }
   }
 }
