@@ -3,7 +3,7 @@ const URL_REGEX =
 
 global.antilinkDB = global.antilinkDB || {}
 
-module.exports = {
+export default {
   name: "antilink",
 
   run: async (sock, msg) => {
@@ -22,31 +22,26 @@ module.exports = {
         msg.message.videoMessage?.caption ||
         ""
 
-      if (!text) return
-      if (!URL_REGEX.test(text)) return
+      if (!text || !URL_REGEX.test(text)) return
 
       const sender = msg.key.participant || msg.key.remoteJid
 
       const metadata = await sock.groupMetadata(chat)
       const groupName = metadata.subject || "this group"
 
-      // 🚫 ignore admins
       const isAdmin = metadata.participants.find(
         p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
       )
       if (isAdmin) return
 
-      // 🔗 AUTO REACT
+      // 🔗 react
       try {
         await sock.sendMessage(chat, {
-          react: {
-            text: "🔗",
-            key: msg.key
-          }
+          react: { text: "🔗", key: msg.key }
         })
       } catch {}
 
-      // 🗑 DELETE MESSAGE (WORKING FORMAT)
+      // 🗑 delete (ESM safe)
       try {
         await sock.sendMessage(chat, {
           delete: {
@@ -59,25 +54,24 @@ module.exports = {
         console.log("Delete failed:", e.message)
       }
 
-      // warning system
+      // warnings
       if (!group.warnings) group.warnings = {}
       if (!group.warnings[sender]) group.warnings[sender] = 0
 
       group.warnings[sender]++
 
-      const warningMsg = `🚫 _Link detected!_
+      const warningText = `🚫 _Link detected!_
 
 ▒▒▒ˡᵉˣʸ⃝⃝༒🌹 doesn't want any link in _${groupName}_
 
 ⚠️ Warning ${group.warnings[sender]}/3`
 
-      // MODE SYSTEM
       if (group.mode === "delete") {
-        await sock.sendMessage(chat, { text: warningMsg })
+        await sock.sendMessage(chat, { text: warningText })
       }
 
-      else if (group.mode === "warn") {
-        await sock.sendMessage(chat, { text: warningMsg })
+      if (group.mode === "warn") {
+        await sock.sendMessage(chat, { text: warningText })
 
         if (group.warnings[sender] >= 3) {
           await sock.groupParticipantsUpdate(chat, [sender], "remove")
@@ -85,7 +79,7 @@ module.exports = {
         }
       }
 
-      else if (group.mode === "kick") {
+      if (group.mode === "kick") {
         await sock.groupParticipantsUpdate(chat, [sender], "remove")
 
         await sock.sendMessage(chat, {
