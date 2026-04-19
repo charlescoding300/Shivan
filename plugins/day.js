@@ -1,45 +1,49 @@
-export default {
+const moment = require("moment-timezone")
+
+module.exports = {
   name: "day",
   pattern: /^\.day$/i,
 
   run: async (sock, m) => {
     const chat = m.key.remoteJid
 
-    // 🗓️ Auto react
-    await sock.sendMessage(chat, {
-      react: { text: "🗓️", key: m.key }
-    })
+    // 🇳🇬 Nigeria timezone (you can change if needed)
+    const now = moment().tz("Africa/Lagos")
 
-    // Loading message
-    const loadingMsg = await sock.sendMessage(chat, {
-      text: "```Loading this wonderful day 🌍```"
-    })
+    const day = now.format("dddd")
+    const date = now.format("DD")
+    const month = now.format("MMMM")
+    const year = now.format("YYYY")
 
-    // Wait 1 second
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const time12 = now.format("hh:mm:ss A")
 
-    const now = new Date()
+    const text = `
+📅 *TODAY'S INFORMATION*
 
-    const day = now.toLocaleString("en-GB", { weekday: "long" })
-    const date = now.getDate()
-    const month = now.toLocaleString("en-GB", { month: "long" })
-    const year = now.getFullYear()
-    const time = now.toLocaleTimeString("en-GB")
-
-    // Edit message (no spam)
-    await sock.sendMessage(chat, {
-      text: `
-🌍 *Today Information*
-
-📅 Day: ${day}
+🗓️ Day: ${day}
 📆 Date: ${date}
-🗓 Month: ${month}
+📌 Month: ${month}
 📅 Year: ${year}
-⏰ Time: ${time}
+
+⏰ Time: ${time12} (12-hour format)
 
 > *Powered by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*
-      `,
-      edit: loadingMsg.key
+    `.trim()
+
+    await sock.sendMessage(chat, {
+      text
     })
+
+    // 🗓️ AUTO REACT
+    try {
+      await sock.sendMessage(chat, {
+        react: {
+          text: "🗓️",
+          key: m.key
+        }
+      })
+    } catch (e) {
+      console.log("react error:", e)
+    }
   }
 }
