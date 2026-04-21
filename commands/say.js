@@ -1,70 +1,58 @@
-import fs from "fs"
-import https from "https"
-import { exec } from "child_process"
+import axios from "axios";
+
+const footer = `\n> *Powered by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*`;
 
 export default {
   name: "say",
 
-  async execute(sock, msg, args) {
+  async execute(sock, msg, args = []) {
+    try {
+      const chatId = msg.key.remoteJid;
+      const text = args.join(" ").trim();
 
-    if (!args.length) {
-      return sock.sendMessage(msg.key.remoteJid, {
-        text: "Example:\n.say Hello my love"
-      })
+      // 🗣️ AUTO REACT (your new style)
+      await sock.sendMessage(chatId, {
+        react: { text: "🗣️", key: msg.key }
+      });
+
+      if (!text) {
+        return await sock.sendMessage(chatId, {
+          text: `❌ Usage: .say <text>${footer}`
+        });
+      }
+
+      // 🇬🇧 UK FEMALE TTS (Google translate voice - stable fallback)
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+        text
+      )}&tl=en-GB&client=tw-ob`;
+
+      // 🔥 convert to buffer (Railway-safe)
+      const res = await axios.get(ttsUrl, {
+        responseType: "arraybuffer",
+        headers: {
+          "User-Agent": "Mozilla/5.0"
+        }
+      });
+
+      const audioBuffer = Buffer.from(res.data, "binary");
+
+      await sock.sendMessage(chatId, {
+        audio: audioBuffer,
+        mimetype: "audio/mpeg",
+        ptt: true // voice note style 🎙️
+      }, { quoted: msg });
+
+      // footer message
+      await sock.sendMessage(chatId, {
+        text: footer
+      });
+
+    } catch (err) {
+      console.error("Say command error:", err);
+
+      await sock.sendMessage(msg.key.remoteJid, {
+        text: `❌ UK voice failed, try again later${footer}`
+      });
     }
-
-    const text = args.join(" ")
-
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: "🗣️", key: msg.key }
-    })
-
-    const loading = await sock.sendMessage(msg.key.remoteJid, {
-      text: `
-╔══ VOICE ENGINE ══╗
-⏳ Generating UK voice...
-╚══════════════╝
-
-> Powered by ▒▒▒ˡᵉˣʸ⃝⃝༒💘
-      `
-    })
-
-    const mp3 = "voice.mp3"
-    const ogg = "voice.ogg"
-
-    const url =
-      "https://translate.google.com/translate_tts?ie=UTF-8&q=" +
-      encodeURIComponent(text) +
-      "&tl=en-gb&client=tw-ob"
-
-    await new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(mp3)
-
-      https.get(url, (res) => {
-        res.pipe(file)
-        file.on("finish", () => file.close(resolve))
-      }).on("error", reject)
-    })
-
-    exec(`ffmpeg -y -i ${mp3} -c:a libopus ${ogg}`, async () => {
-
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: `
-✔ Voice Ready 🇬🇧
-
-> *Powered by ▒▒▒ˡᵉˣʸ⃝⃝༒💘*
-        `,
-        edit: loading.key
-      })
-
-      await sock.sendMessage(msg.key.remoteJid, {
-        audio: fs.readFileSync(ogg),
-        mimetype: "audio/ogg; codecs=opus",
-        ptt: true
-      })
-
-      fs.unlinkSync(mp3)
-      fs.unlinkSync(ogg)
-    })
   }
-}
+};
